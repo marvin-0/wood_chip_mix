@@ -4,7 +4,6 @@ import pandas as pd
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill
 
-
 def pack_best_fit_combos(items, target=1300):
     """
     주어진 목표 무게에 가장 가깝게 아이템을 조합합니다.
@@ -15,7 +14,7 @@ def pack_best_fit_combos(items, target=1300):
     used = set()
     combos = []
 
-    remaining = [item for item in items if item[1] not in used]  # 발급번호로 사용 여부 판단
+    remaining = [item for item in items if item[1] not in used] # 발급번호로 사용 여부 판단
 
     while remaining:
         best_combo = None
@@ -27,7 +26,7 @@ def pack_best_fit_combos(items, target=1300):
             for j in range(i, len(remaining)):
                 if j >= len(remaining):
                     break
-                a_value, issue_num, weight = remaining[j]  # A열 값, 발급번호, 무게
+                a_value, issue_num, weight = remaining[j] # A열 값, 발급번호, 무게
                 if issue_num in used:
                     continue
                 if total + weight > target * 1.5:
@@ -50,7 +49,6 @@ def pack_best_fit_combos(items, target=1300):
 
         remaining = [item for item in items if item[1] not in used]
     return combos
-
 
 class TimberChipCombinerApp:
     def __init__(self, master):
@@ -82,7 +80,7 @@ class TimberChipCombinerApp:
         self.save_button.config(state=tk.DISABLED)
 
         self.grouped_combos = []
-        self.original_items_for_unused = []  # 'unused_items' 계산을 위해 원본 items 저장
+        self.original_items_for_unused = []
 
     def browse_excel_file(self):
         file_path = filedialog.askopenfilename(
@@ -101,7 +99,7 @@ class TimberChipCombinerApp:
                 if row_idx < 5:
                     continue
 
-                cell_a = row[0]  # 'A'열 = 1번째 열 → 인덱스 0
+                cell_a = row[0]   # 'A'열 = 1번째 열 → 인덱스 0
                 cell_o = row[14]  # 'O'열 = 15번째 열 → 인덱스 14 (발급번호)
                 cell_t = row[19]  # 'T'열 = 20번째 열 → 인덱스 19 (목재칩/무게)
 
@@ -109,19 +107,17 @@ class TimberChipCombinerApp:
                 fill_t = cell_t.fill.start_color.rgb if cell_t.fill.start_color else None
 
                 if (fill_o in ('00000000', 'FFFFFFFF', None)) and \
-                        (fill_t in ('00000000', 'FFFFFFFF', None)):
-                    # A열, 발급번호, 목재칩 무게 순으로 저장
+                   (fill_t in ('00000000', 'FFFFFFFF', None)):
                     rows.append([cell_a.value, cell_o.value, cell_t.value])
 
-            df = pd.DataFrame(rows, columns=['A열', '발급번호', '목재칩'])
+            df = pd.DataFrame(rows, columns=['구분', '발급번호', '목재칩']) # DataFrame 컬럼명 변경
 
             df['목재칩'] = pd.to_numeric(df['목재칩'], errors='coerce')
-            filtered_df = df.dropna(subset=['목재칩', '발급번호'])  # 무게와 발급번호 모두 유효해야 함
+            filtered_df = df.dropna(subset=['목재칩', '발급번호'])
 
-            # items를 (A열값, 발급번호, 목재칩 무게) 튜플 형태로 저장
             items = []
             for _, row in filtered_df.iterrows():
-                items.append((row['A열'], row['발급번호'], round(row['목재칩'], 2)))
+                items.append((row['구분'], row['발급번호'], round(row['목재칩'], 2)))
 
             return items
 
@@ -144,13 +140,13 @@ class TimberChipCombinerApp:
         if not items:
             return
 
-        self.original_items_for_unused = items  # 조합되지 않은 상품을 위해 원본 items 저장
+        self.original_items_for_unused = items
 
         self.result_text.delete(1.0, tk.END)
         self.grouped_combos = pack_best_fit_combos(items, target_weight)
 
         output = []
-        all_used_issue_nums = set()  # 발급번호만으로 사용 여부 판단
+        all_used_issue_nums = set()
 
         output.append("\n====== 전체 조합 결과 요약 ======\n")
         if not self.grouped_combos:
@@ -159,19 +155,18 @@ class TimberChipCombinerApp:
             for i, (combo, weight) in enumerate(self.grouped_combos, 1):
                 output.append(f"[조합 {i}] 총 무게: {weight:.2f}g / 상품 수: {len(combo)}개\n")
                 for a_val, issue_num, w in combo:
-                    output.append(f" - (A열: {a_val if a_val is not None else 'N/A'}) {issue_num} ({w:.2f}g)\n")
+                    output.append(f" - (구분: {a_val if a_val is not None else 'N/A'}) {issue_num} ({w:.2f}g)\n") # 'A열' -> '구분'으로 변경
                     all_used_issue_nums.add(issue_num)
                 output.append("\n")
 
             output.append("✅ 조합에 포함된 모든 상품 발급번호:\n")
             output.append(", ".join(sorted(all_used_issue_nums)) + "\n")
 
-            unused_items_detail = [(a, issue, w) for a, issue, w in self.original_items_for_unused if
-                                   issue not in all_used_issue_nums]
+            unused_items_detail = [(a, issue, w) for a, issue, w in self.original_items_for_unused if issue not in all_used_issue_nums]
             if unused_items_detail:
                 output.append("\n❌ 조합되지 않은 상품:\n")
                 for a_val, issue_num, w in unused_items_detail:
-                    output.append(f" - (A열: {a_val if a_val is not None else 'N/A'}) {issue_num} ({w:.2f}g)\n")
+                    output.append(f" - (구분: {a_val if a_val is not None else 'N/A'}) {issue_num} ({w:.2f}g)\n") # 'A열' -> '구분'으로 변경
             else:
                 output.append("\n🎉 모든 상품이 조합에 사용되었습니다!\n")
 
@@ -197,13 +192,14 @@ class TimberChipCombinerApp:
             ws_out.title = "조합 결과"
 
             # 헤더 추가
-            ws_out.append(["조합 정보", "A열 값", "발급번호", "무게 (g)"])
+            ws_out.append(["조합 정보", "구분", "발급번호", "무게 (g)"]) # 'A열 값' -> '구분'으로 변경
             ws_out.cell(row=1, column=1).fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
             ws_out.cell(row=1, column=2).fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
             ws_out.cell(row=1, column=3).fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
             ws_out.cell(row=1, column=4).fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
 
-            row_idx = 2  # 헤더 다음 행부터 시작
+
+            row_idx = 2
 
             for i, (combo, weight) in enumerate(self.grouped_combos, 1):
                 ws_out.cell(row=row_idx, column=1, value=f"[조합 {i}] 총 무게: {weight:.2f}g / 상품 수: {len(combo)}개")
@@ -213,17 +209,14 @@ class TimberChipCombinerApp:
                     ws_out.cell(row=row_idx, column=3, value=issue_num)
                     ws_out.cell(row=row_idx, column=4, value=f"{w:.2f}")
                     row_idx += 1
-                row_idx += 1  # 각 조합 사이에 빈 줄 추가
+                row_idx += 1
 
-            # 조합된 상품 발급번호 목록
             ws_out.cell(row=row_idx, column=1, value="✅ 조합에 포함된 모든 상품 발급번호:")
             row_idx += 1
             ws_out.cell(row=row_idx, column=1, value=", ".join(sorted(all_used_issue_nums)))
             row_idx += 2
 
-            # 조합되지 않은 상품 목록 (원본 items를 사용하여 정확히 계산)
-            unused_items_detail = [(a, issue, w) for a, issue, w in self.original_items_for_unused if
-                                   issue not in all_used_issue_nums]
+            unused_items_detail = [(a, issue, w) for a, issue, w in self.original_items_for_unused if issue not in all_used_issue_nums]
             if unused_items_detail:
                 ws_out.cell(row=row_idx, column=1, value="❌ 조합되지 않은 상품:")
                 row_idx += 1
@@ -239,7 +232,6 @@ class TimberChipCombinerApp:
             messagebox.showinfo("저장 완료", f"조합 결과가 '{save_path}'에 성공적으로 저장되었습니다.")
         except Exception as e:
             messagebox.showerror("저장 오류", f"파일 저장 중 오류가 발생했습니다: {e}")
-
 
 root = tk.Tk()
 app = TimberChipCombinerApp(root)
